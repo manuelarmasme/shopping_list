@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shopping_list/data/categories.dart';
 import 'package:shopping_list/models/category.dart';
 import 'package:shopping_list/models/grocery_item.dart';
+
+import 'package:http/http.dart' as http;
 
 class NewItem extends StatefulWidget {
   const NewItem({super.key});
@@ -28,14 +32,28 @@ class _NewItemState extends State<NewItem> {
     //! this tells flutter that it won't be null
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
-      Navigator.of(context).pop(
-        GroceryItem(
-          id: DateTime.now().toString(),
-          name: _enteredName,
-          quantity: _enteredQuantity,
-          category: _selectedCategory,
-        ),
+
+      //setting the url
+      final url = Uri.https(
+          'flutter-shopping-list-dbb5b-default-rtdb.firebaseio.com',
+          'shopping-list.json');
+
+      //sending to firebase
+      http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        //we need to convert into json because on the header we are telling that this data is json
+        body: json.encode({
+          'name': _enteredName,
+          'quantity': _enteredQuantity,
+          'category': _selectedCategory.title,
+        }),
       );
+
+      // Navigator.of(context).pop(
+      // );
     }
   }
 
