@@ -27,11 +27,19 @@ class _NewItemState extends State<NewItem> {
   //this var hels to have an initial value into the dropdown
   var _selectedCategory = categories[Categories.vegetables]!;
 
+  //var to show spinner and disable buttons
+  var _isSending = false;
+
   //function to save an item
-  void _saveItem() {
+  void _saveItem() async {
     //! this tells flutter that it won't be null
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
+
+      //update the ui to show the button
+      setState(() {
+        _isSending = true;
+      });
 
       //setting the url
       final url = Uri.https(
@@ -39,7 +47,7 @@ class _NewItemState extends State<NewItem> {
           'shopping-list.json');
 
       //sending to firebase
-      http.post(
+      final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -52,8 +60,20 @@ class _NewItemState extends State<NewItem> {
         }),
       );
 
-      // Navigator.of(context).pop(
-      // );
+      final Map<String, dynamic> resData = json.decode(response.body);
+
+      //if this context is not part anymore of this
+      //we finish this app
+      if (!context.mounted) {
+        return;
+      }
+
+      Navigator.of(context).pop(GroceryItem(
+        id: resData['name'],
+        name: _enteredName,
+        quantity: _enteredQuantity,
+        category: _selectedCategory,
+      ));
     }
   }
 
@@ -150,14 +170,22 @@ class _NewItemState extends State<NewItem> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () {
-                      _formKey.currentState!.reset();
-                    },
+                    onPressed: _isSending
+                        ? null
+                        : () {
+                            _formKey.currentState!.reset();
+                          },
                     child: const Text('Reset'),
                   ),
                   ElevatedButton(
-                    onPressed: _saveItem,
-                    child: const Text('Add Item'),
+                    onPressed: _isSending ? null : _saveItem,
+                    child: _isSending
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(),
+                          )
+                        : const Text('Add Item'),
                   )
                 ],
               ),
