@@ -36,49 +36,62 @@ class _GroceryListState extends State<GroceryList> {
         'flutter-shopping-list-dbb5b-default-rtdb.firebaseio.com',
         'shopping-list.json');
 
-    //getting https result
-    final response = await http.get(url);
+    try {
+      //getting https result
+      final response = await http.get(url);
 
-    print(response.statusCode);
+      if (response.statusCode >= 400) {
+        setState(() {
+          _error = 'Something happend fetchin the data. Try again later';
+        });
+      }
 
-    if (response.statusCode >= 400) {
+      if (response.body == 'null') {
+        //update the ui to not loading anymore
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // convert json into a map
+      final Map<String, dynamic> listData = json.decode(response.body);
+
+      //
+      final List<GroceryItem> loadedItems = [];
+
+      //looping throught array
+      for (final item in listData.entries) {
+        //getting category info
+        //
+
+        final category = categories.entries
+            .firstWhere(
+                (catItem) => catItem.value.title == item.value['category'])
+            .value;
+
+        loadedItems.add(
+          GroceryItem(
+            id: item.key,
+            name: item.value['name'],
+            quantity: item.value['quantity'],
+            category: category,
+          ),
+        );
+      }
+
+      //update the ui
+
       setState(() {
-        _error = 'Something happend fetchin the data. Try again later';
+        //asign new items
+        _groceryItems = loadedItems;
+        _isLoading = false;
+      });
+    } catch (err) {
+      setState(() {
+        _error = 'Something wrong fetchin the data. Try again later';
       });
     }
-    // convert json into a map
-    final Map<String, dynamic> listData = json.decode(response.body);
-
-    //
-    final List<GroceryItem> loadedItems = [];
-
-    //looping throught array
-    for (final item in listData.entries) {
-      //getting category info
-      //
-
-      final category = categories.entries
-          .firstWhere(
-              (catItem) => catItem.value.title == item.value['category'])
-          .value;
-
-      loadedItems.add(
-        GroceryItem(
-          id: item.key,
-          name: item.value['name'],
-          quantity: item.value['quantity'],
-          category: category,
-        ),
-      );
-    }
-
-    //update the ui
-
-    setState(() {
-      //asign new items
-      _groceryItems = loadedItems;
-      _isLoading = false;
-    });
   }
 
   //Function to go to the other screen
@@ -101,11 +114,29 @@ class _GroceryListState extends State<GroceryList> {
   }
 
   //function to delete
-  void _onRemoveItem(GroceryItem item) {
+  void _onRemoveItem(GroceryItem item) async {
+    //get the indesx from the item if the delete fails
+    final index = _groceryItems.indexOf(item);
+
     //because we have to update de ui
     setState(() {
       _groceryItems.remove(item);
     });
+
+    //setting the url
+    final url = Uri.https(
+        'flutter-shopping-list-dbb5b-default-rtdb.firebaseio.com',
+        'shopping-list/${item.id}.json');
+    //sending the delete the response from firebase
+    final response = await http.delete(url);
+
+    if (response.statusCode >= 400) {
+      // if it fail the delete method
+
+      setState(() {
+        _groceryItems.insert(index, item);
+      });
+    }
   }
 
   @override
